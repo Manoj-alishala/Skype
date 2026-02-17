@@ -17,6 +17,12 @@ const useLogin = () => {
 				body: JSON.stringify({ username, password }),
 			});
 
+			// Check if response is ok before parsing
+			if (!res.ok) {
+				const errorText = await res.text();
+				throw new Error(errorText || "Login failed");
+			}
+
 			const data = await res.json();
 			if (data.error) {
 				throw new Error(data.error);
