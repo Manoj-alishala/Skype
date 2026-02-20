@@ -4,8 +4,8 @@ import { extractTime } from "../../utils/extractTime";
 import useConversation from "../../zustand/useConversation";
 import useDeleteMessage from "../../hooks/useDeleteMessage";
 import useReactToMessage from "../../hooks/useReactToMessage";
-import { BsCheck2, BsCheck2All, BsThreeDotsVertical, BsMicFill } from "react-icons/bs";
-import { IoTrashOutline, IoTrashBin } from "react-icons/io5";
+import { BsCheck2, BsCheck2All, BsThreeDotsVertical, BsMicFill, BsTelephoneFill, BsCameraVideoFill, BsTelephoneXFill } from "react-icons/bs";
+import { IoTrashOutline, IoTrashBin, IoCallOutline, IoVideocamOutline } from "react-icons/io5";
 import { MdOutlineAddReaction } from "react-icons/md";
 
 const QUICK_REACTIONS = ["❤️", "😂", "👍", "😮", "😢", "🔥"];
@@ -86,6 +86,52 @@ const Message = ({ message }) => {
 					</div>
 					<div className='flex items-center gap-1 mt-1 px-1'>
 						<span className='text-[10px] text-gray-500'>{formattedTime}</span>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	// ─── Call Log Message ────────────────────────────────
+	if (message.callType) {
+		const isVideo = message.callType === "video";
+		const duration = message.callDuration || 0;
+		const status = message.callStatus || "ended";
+		const durationStr = duration > 0
+			? `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, "0")}`
+			: null;
+
+		let statusText = "";
+		let statusColor = "";
+		let StatusIcon = isVideo ? BsCameraVideoFill : BsTelephoneFill;
+
+		if (status === "ended" && duration > 0) {
+			statusText = `${isVideo ? "Video" : "Voice"} call · ${durationStr}`;
+			statusColor = "text-green-400";
+		} else if (status === "missed") {
+			statusText = `Missed ${isVideo ? "video" : "voice"} call`;
+			statusColor = "text-red-400";
+			StatusIcon = BsTelephoneXFill;
+		} else if (status === "rejected") {
+			statusText = `${isVideo ? "Video" : "Voice"} call declined`;
+			statusColor = "text-orange-400";
+			StatusIcon = BsTelephoneXFill;
+		} else {
+			statusText = `${isVideo ? "Video" : "Voice"} call`;
+			statusColor = "text-gray-400";
+		}
+
+		return (
+			<div className="flex justify-center mb-3">
+				<div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-white/[0.05] border border-white/[0.08] ${statusColor}`}>
+					<div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+						status === "missed" || status === "rejected" ? "bg-red-500/20" : "bg-green-500/20"
+					}`}>
+						<StatusIcon className="w-3.5 h-3.5" />
+					</div>
+					<div className="flex flex-col">
+						<span className="text-xs font-medium">{statusText}</span>
+						<span className="text-[10px] text-gray-500">{formattedTime}</span>
 					</div>
 				</div>
 			</div>

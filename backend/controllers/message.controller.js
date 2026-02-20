@@ -4,6 +4,53 @@ import FriendRequest from "../models/friendRequest.model.js";
 import cloudinary from "../config/cloudinary.js";
 import { getReceiverSocketId, io } from "../socket/socket.js";
 
+// ─── Call Log Message ─────────────────────────────────
+export const createCallLog = async (req, res) => {
+	try {
+		const { receiverId, callType, callDuration, callStatus } = req.body;
+		const senderId = req.user._id;
+
+		if (!receiverId || !callType) {
+			return res.status(400).json({ error: "receiverId and callType are required" });
+		}
+
+		let conversation = await Conversation.findOne({
+			participants: { $all: [senderId, receiverId] },
+		});
+
+		if (!conversation) {
+			conversation = await Conversation.create({
+				participants: [senderId, receiverId],
+			});
+		}
+
+		const receiverSocketId = getReceiverSocketId(receiverId);
+
+		const callMessage = new Message({
+			senderId,
+			receiverId,
+			callType,
+			callDuration: callDuration || 0,
+			callStatus: callStatus || "ended",
+			status: receiverSocketId ? "delivered" : "sent",
+		});
+
+		conversation.messages.push(callMessage._id);
+		conversation.lastMessage = callMessage._id;
+
+		await Promise.all([conversation.save(), callMessage.save()]);
+
+		if (receiverSocketId) {
+			io.to(receiverSocketId).emit("newMessage", callMessage);
+		}
+
+		res.status(201).json(callMessage);
+	} catch (error) {
+		console.log("Error in createCallLog controller:", error.message);
+		res.status(500).json({ error: "Internal server error" });
+	}
+};
+
 export const sendMessage = async (req, res) => {
 	try {
 		const { message, image, audio, audioDuration } = req.body;

@@ -50,6 +50,21 @@ const messageSchema = new mongoose.Schema(
 			type: Number, // duration in seconds
 			default: 0,
 		},
+		// Call log fields
+		callType: {
+			type: String,
+			enum: ["audio", "video"],
+			default: null,
+		},
+		callDuration: {
+			type: Number, // seconds
+			default: 0,
+		},
+		callStatus: {
+			type: String,
+			enum: ["ended", "missed", "rejected"],
+			default: null,
+		},
 		// Reactions: [{userId, emoji}]
 		reactions: [
 			{
