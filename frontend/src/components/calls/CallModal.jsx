@@ -21,29 +21,47 @@ const AUDIO_CONSTRAINTS = {
 	autoGainControl: true,
 };
 
-const VIDEO_CONSTRAINTS = {
-	width: { ideal: 1280 },
-	height: { ideal: 720 },
-	frameRate: { ideal: 30 },
-	facingMode: "user",
-};
-
-// Helper: get user media with graceful fallback for video
+// Helper: get user media with graceful fallback
 const getMediaStream = async (wantVideo) => {
 	if (wantVideo) {
 		try {
-			return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: VIDEO_CONSTRAINTS });
+			const stream = await navigator.mediaDevices.getUserMedia({
+				audio: AUDIO_CONSTRAINTS,
+				video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
+			});
+			console.log("[WebRTC] getUserMedia OK — audio:", stream.getAudioTracks().length, "video:", stream.getVideoTracks().length);
+			return stream;
 		} catch (e) {
-			console.warn("[WebRTC] HD video failed, trying basic video:", e.message);
+			console.warn("[WebRTC] HD video failed:", e.message);
 			try {
-				return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: true });
+				const stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: true });
+				console.log("[WebRTC] Basic video OK — audio:", stream.getAudioTracks().length, "video:", stream.getVideoTracks().length);
+				return stream;
 			} catch (e2) {
-				console.warn("[WebRTC] Camera unavailable, falling back to audio-only:", e2.message);
-				return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS });
+				console.warn("[WebRTC] All video failed, audio-only:", e2.message);
+				const stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS });
+				console.log("[WebRTC] Audio-only — audio:", stream.getAudioTracks().length, "video:", stream.getVideoTracks().length);
+				return stream;
 			}
 		}
 	}
 	return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS });
+};
+
+// Directly attach a stream to a media element
+const attachStream = (element, stream, label) => {
+	if (!element || !stream) return;
+	if (element.srcObject === stream) {
+		if (element.paused) {
+			element.play().catch((e) => console.warn(`[WebRTC] ${label} re-play:`, e.message));
+		}
+		return;
+	}
+	console.log(`[WebRTC] Attaching stream to ${label}`);
+	element.srcObject = stream;
+	element.play()
+		.then(() => console.log(`[WebRTC] ${label} playing ✓`))
+		.catch((e) => console.warn(`[WebRTC] ${label} play blocked:`, e.message));
 };
 
 const CallModal = () => {
@@ -61,6 +79,7 @@ const CallModal = () => {
 	const targetIdRef = useRef(null);
 	const durationIntervalRef = useRef(null);
 	const disconnectTimeoutRef = useRef(null);
+	const pollIntervalRef = useRef(null);
 	const callTypeRef = useRef("audio");
 	const callConnectedRef = useRef(false);
 
@@ -70,63 +89,7 @@ const CallModal = () => {
 	const [callDuration, setCallDuration] = useState(0);
 	const [callType, setCallType] = useState("audio");
 	const [remoteUser, setRemoteUser] = useState(null);
-	const [remoteStream, setRemoteStream] = useState(null); // STATE — triggers re-render for video attach
-	const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
-
-	// ─── Attach remote stream to video + audio elements whenever stream or DOM changes ───
-	useEffect(() => {
-		if (!remoteStream) return;
-
-		const videoTracks = remoteStream.getVideoTracks();
-		const hasVideo = videoTracks.length > 0 && videoTracks.some((t) => t.readyState === "live" && t.enabled);
-		setHasRemoteVideo(hasVideo);
-
-		console.log(`[WebRTC] Attach effect — hasVideo: ${hasVideo}, callState: ${callState}, videoEl: ${!!remoteVideoRef.current}, audioEl: ${!!remoteAudioRef.current}`);
-		videoTracks.forEach((t, i) => console.log(`[WebRTC]   video[${i}]: enabled=${t.enabled}, muted=${t.muted}, readyState=${t.readyState}`));
-
-		// Listen for track changes
-		videoTracks.forEach((track) => {
-			track.onended = () => {
-				console.log("[WebRTC] Remote video track ended");
-				setHasRemoteVideo(false);
-			};
-			track.onunmute = () => {
-				console.log("[WebRTC] Remote video track unmuted");
-				setHasRemoteVideo(true);
-			};
-		});
-
-		// Use requestAnimationFrame to ensure DOM is ready
-		const raf = requestAnimationFrame(() => {
-			const videoEl = remoteVideoRef.current;
-			const audioEl = remoteAudioRef.current;
-
-			if (videoEl) {
-				console.log("[WebRTC] Setting remote video srcObject via effect");
-				videoEl.srcObject = remoteStream;
-				videoEl.play()
-					.then(() => console.log("[WebRTC] Remote video playing ✓"))
-					.catch((e) => console.warn("[WebRTC] Remote video play blocked:", e.message));
-			}
-
-			if (audioEl) {
-				audioEl.srcObject = remoteStream;
-				audioEl.play().catch((e) => console.warn("[WebRTC] Remote audio play blocked:", e.message));
-			}
-		});
-
-		return () => cancelAnimationFrame(raf);
-	}, [remoteStream, callState]); // re-run when stream arrives OR when UI switches (new elements mount)
-
-	// ─── Attach local stream to local video when either changes ───
-	useEffect(() => {
-		const localEl = localVideoRef.current;
-		const localStream = localStreamRef.current;
-		if (localEl && localStream) {
-			localEl.srcObject = localStream;
-			localEl.play().catch(() => {});
-		}
-	}, [callState]); // re-run when UI switches
+	const [debugInfo, setDebugInfo] = useState("");
 
 	// Keep targetIdRef current
 	useEffect(() => {
@@ -138,30 +101,46 @@ const CallModal = () => {
 		callTypeRef.current = callType;
 	}, [callType]);
 
-	// ─── Re-attach on connected state — belt & suspenders ───
+	// ─── Poll: ensure media elements have streams and are playing ───
+	// This runs every 500ms during active calls and guarantees attachment
 	useEffect(() => {
-		if (callState !== "connected") return;
-		// Force re-attach after ICE connects
-		const timer = setTimeout(() => {
-			const stream = remoteStreamRef.current;
-			if (!stream) return;
-			const v = remoteVideoRef.current;
-			if (v) {
-				v.srcObject = stream;
-				v.play()
-					.then(() => console.log("[WebRTC] Connected re-attach: video playing ✓"))
-					.catch((e) => console.warn("[WebRTC] Connected re-attach play:", e.message));
+		if (callState === "idle" || callState === "ringing") {
+			if (pollIntervalRef.current) {
+				clearInterval(pollIntervalRef.current);
+				pollIntervalRef.current = null;
 			}
-			const a = remoteAudioRef.current;
-			if (a) {
-				a.srcObject = stream;
-				a.play().catch(() => {});
+			return;
+		}
+
+		pollIntervalRef.current = setInterval(() => {
+			const remoteStream = remoteStreamRef.current;
+			if (!remoteStream) return;
+
+			attachStream(remoteVideoRef.current, remoteStream, "poll-remoteVideo");
+			attachStream(remoteAudioRef.current, remoteStream, "poll-remoteAudio");
+
+			if (localStreamRef.current && localVideoRef.current) {
+				attachStream(localVideoRef.current, localStreamRef.current, "poll-localVideo");
 			}
-			// Check video track status
-			const vt = stream.getVideoTracks();
-			setHasRemoteVideo(vt.length > 0 && vt.some((t) => t.readyState === "live"));
-		}, 200);
-		return () => clearTimeout(timer);
+
+			// Update debug info
+			const vEl = remoteVideoRef.current;
+			const vTracks = remoteStream.getVideoTracks();
+			const aTracks = remoteStream.getAudioTracks();
+			const info = [
+				`V:${vTracks.length} A:${aTracks.length}`,
+				vTracks.map((t) => `${t.readyState}/${t.enabled ? "on" : "off"}/${t.muted ? "muted" : "unmuted"}`).join(",") || "no-vtracks",
+				vEl ? `${vEl.videoWidth}x${vEl.videoHeight} ${vEl.paused ? "PAUSED" : "playing"} ${vEl.srcObject ? "HAS-SRC" : "NO-SRC"}` : "no-video-el",
+			].join(" | ");
+			setDebugInfo(info);
+		}, 500);
+
+		return () => {
+			if (pollIntervalRef.current) {
+				clearInterval(pollIntervalRef.current);
+				pollIntervalRef.current = null;
+			}
+		};
 	}, [callState]);
 
 	// ─── Cleanup helper ──────────────────────────────────
@@ -171,8 +150,6 @@ const CallModal = () => {
 			localStreamRef.current = null;
 		}
 		remoteStreamRef.current = null;
-		setRemoteStream(null);
-		setHasRemoteVideo(false);
 		callConnectedRef.current = false;
 		if (peerConnectionRef.current) {
 			peerConnectionRef.current.onicecandidate = null;
@@ -189,23 +166,17 @@ const CallModal = () => {
 			clearTimeout(disconnectTimeoutRef.current);
 			disconnectTimeoutRef.current = null;
 		}
+		if (pollIntervalRef.current) {
+			clearInterval(pollIntervalRef.current);
+			pollIntervalRef.current = null;
+		}
 		iceCandidatesQueue.current = [];
+		setDebugInfo("");
 	}, []);
 
 	useEffect(() => {
 		return () => doCleanup();
 	}, [doCleanup]);
-
-	// ─── Attach remote stream to all media elements ─────
-	const tryAttachRemoteStream = useCallback((stream) => {
-		remoteStreamRef.current = stream;
-		setRemoteStream(stream); // triggers useEffect for attachment
-
-		const videoTracks = stream.getVideoTracks();
-		const audioTracks = stream.getAudioTracks();
-		console.log(`[WebRTC] tryAttachRemoteStream — audio: ${audioTracks.length}, video: ${videoTracks.length}`);
-		videoTracks.forEach((t, i) => console.log(`[WebRTC]   video[${i}]: enabled=${t.enabled}, muted=${t.muted}, readyState=${t.readyState}`));
-	}, []);
 
 	// ─── Create peer connection ──────────────────────────
 	const createPeerConnection = useCallback(() => {
@@ -222,19 +193,24 @@ const CallModal = () => {
 		};
 
 		pc.ontrack = (event) => {
-			console.log("[WebRTC] ontrack:", event.track.kind, "readyState:", event.track.readyState, "streams:", event.streams.length);
-			// Use existing stream or create one from the track
+			console.log("[WebRTC] >>> ontrack:", event.track.kind, "readyState:", event.track.readyState, "streams:", event.streams.length);
+
 			let stream = event.streams[0];
 			if (!stream) {
-				console.warn("[WebRTC] ontrack: no stream in event, creating one from track");
+				console.warn("[WebRTC] No stream in ontrack, building manually");
 				stream = remoteStreamRef.current || new MediaStream();
 				stream.addTrack(event.track);
 			}
-			tryAttachRemoteStream(stream);
-			// Listen for track unmute (tracks can arrive muted initially)
+			remoteStreamRef.current = stream;
+
+			// DIRECTLY attach right now — no state, no effects, no delays
+			attachStream(remoteVideoRef.current, stream, "ontrack-remoteVideo");
+			attachStream(remoteAudioRef.current, stream, "ontrack-remoteAudio");
+
 			event.track.onunmute = () => {
 				console.log("[WebRTC] Track unmuted:", event.track.kind);
-				tryAttachRemoteStream(stream);
+				attachStream(remoteVideoRef.current, stream, "unmute-remoteVideo");
+				attachStream(remoteAudioRef.current, stream, "unmute-remoteAudio");
 			};
 		};
 
@@ -252,10 +228,14 @@ const CallModal = () => {
 				if (!durationIntervalRef.current) {
 					durationIntervalRef.current = setInterval(() => setCallDuration((d) => d + 1), 1000);
 				}
-				// Re-attach remote stream after connection
-				if (remoteStreamRef.current) {
-					setRemoteStream(remoteStreamRef.current); // force re-render
-				}
+				// Force re-attach after ICE connects — video element now definitely in DOM
+				setTimeout(() => {
+					const s = remoteStreamRef.current;
+					if (s) {
+						attachStream(remoteVideoRef.current, s, "iceConnected-remoteVideo");
+						attachStream(remoteAudioRef.current, s, "iceConnected-remoteAudio");
+					}
+				}, 300);
 			}
 			if (state === "failed") {
 				const target = targetIdRef.current;
@@ -283,7 +263,7 @@ const CallModal = () => {
 		};
 
 		return pc;
-	}, [socket, doCleanup, setActiveCall, setIncomingCall, tryAttachRemoteStream]);
+	}, [socket, doCleanup, setActiveCall, setIncomingCall]);
 
 	// ─── Save call log to chat ───────────────────────────
 	const saveCallLog = useCallback(async (targetUserId, type, duration, status) => {
@@ -300,7 +280,6 @@ const CallModal = () => {
 			});
 			if (res.ok) {
 				const callMsg = await res.json();
-				// Add to current chat if viewing this conversation
 				const state = useConversation.getState();
 				if (state.selectedConversation?._id === targetUserId) {
 					state.setMessages((prev) => [...prev, callMsg]);
@@ -333,7 +312,6 @@ const CallModal = () => {
 				if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
 
 				localStreamRef.current = stream;
-				if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
 				const pc = createPeerConnection();
 				stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -347,6 +325,14 @@ const CallModal = () => {
 					signal: offer,
 					type: activeCall.type,
 				});
+
+				// Attach local video after PC setup
+				setTimeout(() => {
+					if (localVideoRef.current && localStreamRef.current) {
+						localVideoRef.current.srcObject = localStreamRef.current;
+						localVideoRef.current.play().catch(() => {});
+					}
+				}, 50);
 			} catch (err) {
 				if (cancelled) return;
 				console.error("[WebRTC] Failed to start call:", err);
@@ -417,21 +403,11 @@ const CallModal = () => {
 	// ─── Remote end / reject handlers ────────────────────
 	useEffect(() => {
 		if (!socket) return;
-
 		const handleCallEnded = () => {
-			// Save call log (the remote side ended)
-			const target = targetIdRef.current;
-			const type = callTypeRef.current;
-			const wasConnected = callConnectedRef.current;
 			doCleanup();
 			setCallState("idle");
 			setActiveCall(null);
 			setIncomingCall(null);
-			// The caller saves the log, so if we're the callee,
-			// the caller already handled it. But if the remote ended while connected,
-			// we should still log from our side if we initiated the call.
-			// Actually — let endCall handle logging for the person who clicks "end".
-			// For callEnded, the remote peer already saved it. So we just close.
 		};
 		const handleCallRejected = () => {
 			const target = targetIdRef.current;
@@ -439,12 +415,8 @@ const CallModal = () => {
 			doCleanup();
 			setCallState("idle");
 			setActiveCall(null);
-			// Save as missed/rejected call
-			if (target) {
-				saveCallLog(target, type, 0, "rejected");
-			}
+			if (target) saveCallLog(target, type, 0, "rejected");
 		};
-
 		socket.on("callEnded", handleCallEnded);
 		socket.on("callRejected", handleCallRejected);
 		return () => {
@@ -460,11 +432,6 @@ const CallModal = () => {
 			const isVideo = incomingCall.type === "video";
 			const stream = await getMediaStream(isVideo);
 			localStreamRef.current = stream;
-
-			// Attach local video preview (callee side too)
-			if (localVideoRef.current) {
-				localVideoRef.current.srcObject = stream;
-			}
 
 			targetIdRef.current = incomingCall.from;
 			const pc = createPeerConnection();
@@ -490,7 +457,15 @@ const CallModal = () => {
 				accepted: true,
 			});
 			setIncomingCall(null);
-			setCallState("calling"); // show "Connecting..." until ICE connects
+			setCallState("calling");
+
+			// Attach local video after state updates allow DOM to render
+			setTimeout(() => {
+				if (localVideoRef.current && localStreamRef.current) {
+					localVideoRef.current.srcObject = localStreamRef.current;
+					localVideoRef.current.play().catch(() => {});
+				}
+			}, 100);
 		} catch (err) {
 			console.error("[WebRTC] Failed to accept call:", err);
 			rejectCall();
@@ -522,13 +497,8 @@ const CallModal = () => {
 		setActiveCall(null);
 		setIncomingCall(null);
 
-		// Save call log
 		if (target) {
-			if (wasConnected) {
-				saveCallLog(target, type, duration, "ended");
-			} else {
-				saveCallLog(target, type, 0, "missed");
-			}
+			saveCallLog(target, type, wasConnected ? duration : 0, wasConnected ? "ended" : "missed");
 		}
 	};
 
@@ -558,41 +528,23 @@ const CallModal = () => {
 	if (callState === "ringing" && incomingCall) {
 		return (
 			<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-			<audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+				<audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
 				<div className="glass-card-strong rounded-2xl p-8 max-w-sm w-full mx-4 text-center space-y-6">
 					<div className="relative inline-block mx-auto">
-						<img
-							src={remoteUser?.profilePic}
-							alt={remoteUser?.fullName}
-							className="w-24 h-24 rounded-full object-cover ring-4 ring-primary-400/30 mx-auto animate-pulse"
-						/>
+						<img src={remoteUser?.profilePic} alt={remoteUser?.fullName} className="w-24 h-24 rounded-full object-cover ring-4 ring-primary-400/30 mx-auto animate-pulse" />
 						<span className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center ring-4 ring-gray-900">
-							{callType === "video" ? (
-								<BsCameraVideoFill className="w-4 h-4 text-white" />
-							) : (
-								<BsTelephoneFill className="w-4 h-4 text-white" />
-							)}
+							{callType === "video" ? <BsCameraVideoFill className="w-4 h-4 text-white" /> : <BsTelephoneFill className="w-4 h-4 text-white" />}
 						</span>
 					</div>
-
 					<div>
 						<h3 className="text-xl font-bold text-white">{remoteUser?.fullName}</h3>
-						<p className="text-gray-400 text-sm mt-1">
-							Incoming {callType} call...
-						</p>
+						<p className="text-gray-400 text-sm mt-1">Incoming {callType} call...</p>
 					</div>
-
 					<div className="flex items-center justify-center gap-6">
-						<button
-							onClick={rejectCall}
-							className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 transition-all hover:scale-110"
-						>
+						<button onClick={rejectCall} className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 transition-all hover:scale-110">
 							<BsTelephoneXFill className="w-6 h-6 text-white" />
 						</button>
-						<button
-							onClick={acceptCall}
-							className="w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-lg shadow-green-500/30 transition-all hover:scale-110 animate-bounce"
-						>
+						<button onClick={acceptCall} className="w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-lg shadow-green-500/30 transition-all hover:scale-110 animate-bounce">
 							<BsTelephoneFill className="w-6 h-6 text-white" />
 						</button>
 					</div>
@@ -601,81 +553,79 @@ const CallModal = () => {
 		);
 	}
 
-	// ─── Active Call UI (calling / connected) ────────────
+	// ─── Active Call UI ──────────────────────────────────
 	return (
 		<div className="fixed inset-0 z-[9999] flex flex-col bg-gray-950 animate-fade-in">
 			{/* Hidden audio — always present for audio playback */}
 			<audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
 
 			{callType === "video" ? (
-				<div className="flex-1 relative bg-gray-900 overflow-hidden">
-					{/* Remote video — MUTED because audio goes through hidden <audio> */}
+				<div style={{ flex: 1, position: "relative", background: "#000", minHeight: 0, overflow: "hidden" }}>
+					{/* Remote video — full screen, MUTED because audio goes through <audio> */}
 					<video
 						ref={remoteVideoRef}
 						autoPlay
 						playsInline
 						muted
-						className="absolute inset-0 w-full h-full object-cover"
+						style={{
+							position: "absolute",
+							top: 0,
+							left: 0,
+							width: "100%",
+							height: "100%",
+							objectFit: "cover",
+							background: "#000",
+						}}
 					/>
-					{/* Fallback when remote peer has no camera / camera off */}
-					{callState === "connected" && !hasRemoteVideo && (
-						<div className="absolute inset-0 z-[5] flex items-center justify-center bg-gray-900">
-							<div className="text-center space-y-3">
-								<img
-									src={remoteUser?.profilePic}
-									alt={remoteUser?.fullName}
-									className="w-28 h-28 rounded-full object-cover ring-4 ring-green-400/30 mx-auto"
-								/>
-								<h3 className="text-xl font-bold text-white">{remoteUser?.fullName}</h3>
-								<p className="text-gray-400 text-sm">Camera off</p>
-								<p className="text-green-400 text-sm">{formatDuration(callDuration)}</p>
-							</div>
-						</div>
-					)}
-					{/* "Connecting" overlay — disappears when connected */}
+
+					{/* "Connecting" overlay — only before ICE connects */}
 					{callState !== "connected" && (
-						<div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900/90">
+						<div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(17,24,39,0.92)" }}>
 							<div className="text-center space-y-4">
-								<img
-									src={remoteUser?.profilePic}
-									alt={remoteUser?.fullName}
-									className="w-28 h-28 rounded-full object-cover ring-4 ring-white/10 mx-auto"
-								/>
+								<img src={remoteUser?.profilePic} alt={remoteUser?.fullName} className="w-28 h-28 rounded-full object-cover ring-4 ring-white/10 mx-auto" />
 								<h3 className="text-xl font-bold text-white">{remoteUser?.fullName}</h3>
 								<p className="text-gray-400 animate-pulse">Connecting...</p>
 							</div>
 						</div>
 					)}
-					{/* Local video preview (picture-in-picture) */}
-					<div className="absolute bottom-24 right-4 w-32 h-44 sm:w-40 sm:h-56 rounded-xl overflow-hidden ring-2 ring-white/20 shadow-2xl z-20">
+
+					{/* Debug overlay — shows video state */}
+					{debugInfo && (
+						<div style={{ position: "absolute", top: 8, left: 8, zIndex: 50, background: "rgba(0,0,0,0.75)", color: "#0f0", fontSize: 11, fontFamily: "monospace", padding: "4px 8px", borderRadius: 4, maxWidth: "90%", wordBreak: "break-all" }}>
+							{debugInfo}
+						</div>
+					)}
+
+					{/* Local video PIP */}
+					<div style={{ position: "absolute", bottom: 96, right: 16, width: 128, height: 176, borderRadius: 12, overflow: "hidden", zIndex: 20, border: "2px solid rgba(255,255,255,0.2)", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
 						<video
 							ref={localVideoRef}
 							autoPlay
 							playsInline
 							muted
-							className={`w-full h-full object-cover ${isVideoOff ? "hidden" : ""}`}
+							style={{ width: "100%", height: "100%", objectFit: "cover", display: isVideoOff ? "none" : "block" }}
 						/>
 						{isVideoOff && (
-							<div className="w-full h-full bg-gray-800 flex items-center justify-center">
+							<div style={{ width: "100%", height: "100%", background: "#1f2937", display: "flex", alignItems: "center", justifyContent: "center" }}>
 								<img src={authUser?.profilePic} alt="You" className="w-16 h-16 rounded-full object-cover" />
 							</div>
 						)}
 					</div>
+
+					{/* Duration when connected */}
+					{callState === "connected" && (
+						<div style={{ position: "absolute", top: 8, right: 8, zIndex: 30, background: "rgba(0,0,0,0.5)", color: "#4ade80", fontSize: 14, padding: "4px 12px", borderRadius: 20 }}>
+							{formatDuration(callDuration)}
+						</div>
+					)}
 				</div>
 			) : (
+				/* Audio call UI */
 				<div className="flex-1 flex items-center justify-center bg-gradient-to-b from-gray-900 to-gray-950">
 					<div className="text-center space-y-6">
 						<div className="relative inline-block">
-							<img
-								src={remoteUser?.profilePic}
-								alt={remoteUser?.fullName}
-								className={`w-32 h-32 rounded-full object-cover ring-4 ${
-									callState === "connected" ? "ring-green-400/30" : "ring-primary-400/30 animate-pulse"
-								}`}
-							/>
-							{callState === "connected" && (
-								<span className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full ring-4 ring-gray-900"></span>
-							)}
+							<img src={remoteUser?.profilePic} alt={remoteUser?.fullName} className={`w-32 h-32 rounded-full object-cover ring-4 ${callState === "connected" ? "ring-green-400/30" : "ring-primary-400/30 animate-pulse"}`} />
+							{callState === "connected" && <span className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full ring-4 ring-gray-900"></span>}
 						</div>
 						<div>
 							<h3 className="text-2xl font-bold text-white">{remoteUser?.fullName}</h3>
@@ -690,37 +640,18 @@ const CallModal = () => {
 			{/* Call controls */}
 			<div className="flex-shrink-0 bg-black/50 backdrop-blur-xl border-t border-white/5 py-6 px-4">
 				<div className="flex items-center justify-center gap-4 sm:gap-6">
-					<button
-						onClick={toggleMute}
-						className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all ${
-							isMuted ? "bg-red-500/20 text-red-400 ring-2 ring-red-400/30" : "bg-white/10 text-white hover:bg-white/20"
-						}`}
-						title={isMuted ? "Unmute" : "Mute"}
-					>
+					<button onClick={toggleMute} className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all ${isMuted ? "bg-red-500/20 text-red-400 ring-2 ring-red-400/30" : "bg-white/10 text-white hover:bg-white/20"}`} title={isMuted ? "Unmute" : "Mute"}>
 						{isMuted ? <IoMicOffOutline className="w-6 h-6" /> : <IoMicOutline className="w-6 h-6" />}
 					</button>
 					{callType === "video" && (
-						<button
-							onClick={toggleVideo}
-							className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all ${
-								isVideoOff ? "bg-red-500/20 text-red-400 ring-2 ring-red-400/30" : "bg-white/10 text-white hover:bg-white/20"
-							}`}
-							title={isVideoOff ? "Turn camera on" : "Turn camera off"}
-						>
+						<button onClick={toggleVideo} className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all ${isVideoOff ? "bg-red-500/20 text-red-400 ring-2 ring-red-400/30" : "bg-white/10 text-white hover:bg-white/20"}`} title={isVideoOff ? "Turn camera on" : "Turn camera off"}>
 							{isVideoOff ? <IoVideocamOffOutline className="w-6 h-6" /> : <IoVideocamOutline className="w-6 h-6" />}
 						</button>
 					)}
-					<button
-						onClick={endCall}
-						className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 transition-all hover:scale-105"
-						title="End call"
-					>
+					<button onClick={endCall} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 transition-all hover:scale-105" title="End call">
 						<BsTelephoneXFill className="w-6 h-6 text-white" />
 					</button>
 				</div>
-				{callState === "connected" && callType === "video" && (
-					<p className="text-center text-green-400 text-sm mt-3">{formatDuration(callDuration)}</p>
-				)}
 			</div>
 		</div>
 	);
