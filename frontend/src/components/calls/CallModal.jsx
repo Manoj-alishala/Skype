@@ -63,6 +63,7 @@ const CallModal = () => {
 	const disconnectTimeoutRef = useRef(null);
 	const callTypeRef = useRef("audio"); // ref for use inside callbacks
 	const callConnectedRef = useRef(false); // track if call was ever connected
+	const playRetryRef = useRef(null); // retry timer for video playback
 
 	const [callState, setCallState] = useState("idle");
 	const [isMuted, setIsMuted] = useState(false);
@@ -70,6 +71,33 @@ const CallModal = () => {
 	const [callDuration, setCallDuration] = useState(0);
 	const [callType, setCallType] = useState("audio");
 	const [remoteUser, setRemoteUser] = useState(null);
+
+	// ─── Ref callbacks: auto-attach streams when DOM elements mount ───
+	const setRemoteVideoRef = useCallback((node) => {
+		remoteVideoRef.current = node;
+		if (node && remoteStreamRef.current) {
+			console.log("[WebRTC] Remote video element mounted — attaching stream");
+			node.srcObject = remoteStreamRef.current;
+			node.play().catch((e) => console.warn("[WebRTC] Remote video auto-play on mount:", e.message));
+		}
+	}, []);
+
+	const setLocalVideoRef = useCallback((node) => {
+		localVideoRef.current = node;
+		if (node && localStreamRef.current) {
+			console.log("[WebRTC] Local video element mounted — attaching stream");
+			node.srcObject = localStreamRef.current;
+			node.play().catch(() => {});
+		}
+	}, []);
+
+	const setRemoteAudioRef = useCallback((node) => {
+		remoteAudioRef.current = node;
+		if (node && remoteStreamRef.current) {
+			node.srcObject = remoteStreamRef.current;
+			node.play().catch((e) => console.warn("[WebRTC] Remote audio auto-play on mount:", e.message));
+		}
+	}, []);
 
 	// Keep targetIdRef current
 	useEffect(() => {
@@ -81,14 +109,19 @@ const CallModal = () => {
 		callTypeRef.current = callType;
 	}, [callType]);
 
-	// ─── Re-attach streams when DOM changes ─────────────
+	// ─── Re-attach streams when callState changes (backup for ref callbacks) ───
 	useEffect(() => {
-		if (remoteStreamRef.current) {
-			tryAttachRemoteStream(remoteStreamRef.current);
-		}
-		if (localStreamRef.current && localVideoRef.current) {
-			localVideoRef.current.srcObject = localStreamRef.current;
-		}
+		// Give DOM a tick to settle after state change
+		const timer = setTimeout(() => {
+			if (remoteStreamRef.current) {
+				tryAttachRemoteStream(remoteStreamRef.current);
+			}
+			if (localStreamRef.current && localVideoRef.current) {
+				localVideoRef.current.srcObject = localStreamRef.current;
+				localVideoRef.current.play().catch(() => {});
+			}
+		}, 50);
+		return () => clearTimeout(timer);
 	}, [callState]);
 
 	// ─── Cleanup helper ──────────────────────────────────
@@ -114,6 +147,10 @@ const CallModal = () => {
 			clearTimeout(disconnectTimeoutRef.current);
 			disconnectTimeoutRef.current = null;
 		}
+		if (playRetryRef.current) {
+			clearInterval(playRetryRef.current);
+			playRetryRef.current = null;
+		}
 		iceCandidatesQueue.current = [];
 	}, []);
 
@@ -128,24 +165,56 @@ const CallModal = () => {
 		// Log track info for debugging
 		const audioTracks = stream.getAudioTracks();
 		const videoTracks = stream.getVideoTracks();
-		console.log(`[WebRTC] Attaching remote stream — audio tracks: ${audioTracks.length}, video tracks: ${videoTracks.length}`);
+		console.log(`[WebRTC] tryAttachRemoteStream — audio: ${audioTracks.length}, video: ${videoTracks.length}`);
 		videoTracks.forEach((t, i) => console.log(`[WebRTC]   video[${i}]: enabled=${t.enabled}, muted=${t.muted}, readyState=${t.readyState}`));
 
-		// Attach to video element (for video calls — muted because audio goes through <audio>)
-		if (remoteVideoRef.current) {
-			remoteVideoRef.current.srcObject = stream;
-			remoteVideoRef.current.onloadedmetadata = () => {
-				console.log("[WebRTC] Remote video loadedmetadata");
-				remoteVideoRef.current?.play().catch((e) => console.warn("[WebRTC] Remote video play (metadata) failed:", e));
+		// Attach to video element (muted because audio goes through hidden <audio>)
+		const videoEl = remoteVideoRef.current;
+		if (videoEl) {
+			if (videoEl.srcObject !== stream) {
+				console.log("[WebRTC] Setting remote video srcObject");
+				videoEl.srcObject = stream;
+			}
+			// Use event listeners (not onloadedmetadata) so we don't overwrite
+			const playVideo = () => {
+				videoEl.play().catch((e) => console.warn("[WebRTC] Remote video play:", e.message));
 			};
-			remoteVideoRef.current.play().catch((e) => console.warn("[WebRTC] Remote video play failed:", e));
+			videoEl.addEventListener("loadedmetadata", playVideo, { once: true });
+			videoEl.addEventListener("canplay", playVideo, { once: true });
+			// Also try immediately
+			playVideo();
+		} else {
+			console.log("[WebRTC] remoteVideoRef not in DOM yet — stream saved for ref callback");
 		}
 
-		// Attach to audio element (always present — sole handler for audio playback)
-		if (remoteAudioRef.current) {
-			remoteAudioRef.current.srcObject = stream;
-			remoteAudioRef.current.play().catch((e) => console.warn("[WebRTC] Remote audio play failed:", e));
+		// Attach to audio element (always present — sole handler for audio)
+		const audioEl = remoteAudioRef.current;
+		if (audioEl) {
+			if (audioEl.srcObject !== stream) {
+				audioEl.srcObject = stream;
+			}
+			audioEl.play().catch((e) => console.warn("[WebRTC] Remote audio play:", e.message));
 		}
+
+		// Start periodic retry to ensure video is playing
+		if (playRetryRef.current) clearInterval(playRetryRef.current);
+		let retries = 0;
+		playRetryRef.current = setInterval(() => {
+			retries++;
+			const v = remoteVideoRef.current;
+			if (v && v.srcObject !== stream) v.srcObject = stream;
+			if (v && v.paused && v.srcObject) {
+				console.log(`[WebRTC] Retry #${retries} — playing remote video`);
+				v.play().catch(() => {});
+			}
+			const a = remoteAudioRef.current;
+			if (a && a.srcObject !== stream) a.srcObject = stream;
+			if (a && a.paused && a.srcObject) a.play().catch(() => {});
+			if (retries >= 10) {
+				clearInterval(playRetryRef.current);
+				playRetryRef.current = null;
+			}
+		}, 500);
 	}, []);
 
 	// ─── Create peer connection ──────────────────────────
@@ -163,16 +232,20 @@ const CallModal = () => {
 		};
 
 		pc.ontrack = (event) => {
-			console.log("[WebRTC] ontrack:", event.track.kind, "readyState:", event.track.readyState);
-			const stream = event.streams[0];
-			if (stream) {
-				tryAttachRemoteStream(stream);
-				// Listen for track unmute (tracks can arrive muted)
-				event.track.onunmute = () => {
-					console.log("[WebRTC] Track unmuted:", event.track.kind);
-					tryAttachRemoteStream(stream);
-				};
+			console.log("[WebRTC] ontrack:", event.track.kind, "readyState:", event.track.readyState, "streams:", event.streams.length);
+			// Use existing stream or create one from the track
+			let stream = event.streams[0];
+			if (!stream) {
+				console.warn("[WebRTC] ontrack: no stream in event, creating one from track");
+				stream = remoteStreamRef.current || new MediaStream();
+				stream.addTrack(event.track);
 			}
+			tryAttachRemoteStream(stream);
+			// Listen for track unmute (tracks can arrive muted initially)
+			event.track.onunmute = () => {
+				console.log("[WebRTC] Track unmuted:", event.track.kind);
+				tryAttachRemoteStream(stream);
+			};
 		};
 
 		pc.oniceconnectionstatechange = () => {
@@ -497,7 +570,7 @@ const CallModal = () => {
 	if (callState === "ringing" && incomingCall) {
 		return (
 			<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-				<audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+				<audio ref={setRemoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
 				<div className="glass-card-strong rounded-2xl p-8 max-w-sm w-full mx-4 text-center space-y-6">
 					<div className="relative inline-block mx-auto">
 						<img
@@ -544,17 +617,18 @@ const CallModal = () => {
 	return (
 		<div className="fixed inset-0 z-[9999] flex flex-col bg-gray-950 animate-fade-in">
 			{/* Hidden audio — always present for audio playback */}
-			<audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+			<audio ref={setRemoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
 
 			{callType === "video" ? (
 				<div className="flex-1 relative bg-gray-900 overflow-hidden">
 					{/* Remote video — always in DOM, z-0. MUTED because audio goes through hidden <audio> */}
 					<video
-						ref={remoteVideoRef}
+						ref={setRemoteVideoRef}
 						autoPlay
 						playsInline
 						muted
-						className="absolute inset-0 w-full h-full object-cover z-0"
+						style={{ width: "100%", height: "100%", objectFit: "cover" }}
+						className="absolute inset-0 z-0"
 					/>
 					{/* "Connecting" overlay — disappears when connected */}
 					{callState !== "connected" && (
@@ -573,7 +647,7 @@ const CallModal = () => {
 					{/* Local video preview (picture-in-picture) */}
 					<div className="absolute bottom-24 right-4 w-32 h-44 sm:w-40 sm:h-56 rounded-xl overflow-hidden ring-2 ring-white/20 shadow-2xl z-20">
 						<video
-							ref={localVideoRef}
+							ref={setLocalVideoRef}
 							autoPlay
 							playsInline
 							muted
