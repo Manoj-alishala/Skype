@@ -7,34 +7,31 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import friendRoutes from "./routes/friend.routes.js";
+import groupRoutes from "./routes/group.routes.js";
 
 import connectToMongoDB from "./db/connectToMongoDB.js";
 import { app, server } from "./socket/socket.js";
 
-dotenv.config();
-
-// Get the actual directory of this file, then go up one level to project root
+// Load .env from backend/ directory (local dev) — on deploy, env vars are set by the platform
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.join(__dirname, "..");
+
+dotenv.config({ path: path.join(__dirname, ".env") });
+// Also try root .env as fallback
+dotenv.config({ path: path.join(rootDir, ".env") });
+
 const PORT = process.env.PORT || 5000;
 
-if (!process.env.PORT) {
-	// If PORT is not defined in env, try loading from parent directory (if run from backend/)
-	dotenv.config({ path: path.join(rootDir, ".env") });
-}
-
-if (!process.env.PORT) {
-	console.warn("WARNING: PORT not found in environment variables. Defaulting to 5000.");
-	console.warn("Ensure .env file is in the root directory.");
-}
-
-app.use(express.json()); // to parse the incoming requests with JSON payloads (from req.body)
+app.use(express.json({ limit: "10mb" })); // to parse the incoming requests with JSON payloads (from req.body)
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/friends", friendRoutes);
+app.use("/api/groups", groupRoutes);
 
 app.use(express.static(path.join(rootDir, "frontend", "dist")));
 

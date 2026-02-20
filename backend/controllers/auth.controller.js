@@ -1,10 +1,11 @@
 import bcrypt from "bcryptjs";
 import User from "../models/user.model.js";
 import generateTokenAndSetCookie from "../utils/generateToken.js";
+import cloudinary from "../config/cloudinary.js";
 
 export const signup = async (req, res) => {
 	try {
-		const { fullName, username, password, confirmPassword, gender } = req.body;
+		const { fullName, username, password, confirmPassword, gender, profilePic } = req.body;
 
 		if (password !== confirmPassword) {
 			return res.status(400).json({ error: "Passwords don't match" });
@@ -20,17 +21,39 @@ export const signup = async (req, res) => {
 		const salt = await bcrypt.genSalt(10);
 		const hashedPassword = await bcrypt.hash(password, salt);
 
-		// https://avatar-placeholder.iran.liara.run/
-
-		const boyProfilePic = `https://avatar.iran.liara.run/public/boy?username=${username}`;
-		const girlProfilePic = `https://avatar.iran.liara.run/public/girl?username=${username}`;
+		// Handle profile picture
+		let finalProfilePic;
+		if (profilePic) {
+			// Upload user-provided image to Cloudinary
+			try {
+				const uploadResult = await cloudinary.uploader.upload(profilePic, {
+					folder: "chat-app/avatars",
+					width: 300,
+					height: 300,
+					crop: "fill",
+					gravity: "face",
+				});
+				finalProfilePic = uploadResult.secure_url;
+			} catch (uploadError) {
+				console.error("Cloudinary upload failed:", uploadError.message);
+				// Fall back to default avatar if upload fails
+				const boyProfilePic = `https://api.dicebear.com/9.x/adventurer/svg?seed=${username}-male&backgroundColor=b6e3f4`;
+				const girlProfilePic = `https://api.dicebear.com/9.x/adventurer/svg?seed=${username}-female&backgroundColor=ffd5dc`;
+				finalProfilePic = gender === "male" ? boyProfilePic : girlProfilePic;
+			}
+		} else {
+			// DiceBear Avatars - default avatar
+			const boyProfilePic = `https://api.dicebear.com/9.x/adventurer/svg?seed=${username}-male&backgroundColor=b6e3f4`;
+			const girlProfilePic = `https://api.dicebear.com/9.x/adventurer/svg?seed=${username}-female&backgroundColor=ffd5dc`;
+			finalProfilePic = gender === "male" ? boyProfilePic : girlProfilePic;
+		}
 
 		const newUser = new User({
 			fullName,
 			username,
 			password: hashedPassword,
 			gender,
-			profilePic: gender === "male" ? boyProfilePic : girlProfilePic,
+			profilePic: finalProfilePic,
 		});
 
 		if (newUser) {
@@ -43,6 +66,8 @@ export const signup = async (req, res) => {
 				fullName: newUser.fullName,
 				username: newUser.username,
 				profilePic: newUser.profilePic,
+				bio: newUser.bio || "",
+				gender: newUser.gender,
 			});
 		} else {
 			res.status(400).json({ error: "Invalid user data" });
@@ -70,6 +95,8 @@ export const login = async (req, res) => {
 			fullName: user.fullName,
 			username: user.username,
 			profilePic: user.profilePic,
+			bio: user.bio || "",
+			gender: user.gender,
 		});
 	} catch (error) {
 		console.log("Error in login controller", error.message);

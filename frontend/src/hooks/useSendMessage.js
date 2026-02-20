@@ -6,15 +6,23 @@ const useSendMessage = () => {
 	const [loading, setLoading] = useState(false);
 	const { messages, setMessages, selectedConversation } = useConversation();
 
-	const sendMessage = async (message) => {
+	const sendMessage = async (message, image = null, audio = null, audioDuration = 0) => {
 		setLoading(true);
 		try {
+			const body = {};
+			if (message) body.message = message;
+			if (image) body.image = image;
+			if (audio) {
+				body.audio = audio;
+				body.audioDuration = audioDuration;
+			}
+
 			const res = await fetch(`/api/messages/send/${selectedConversation._id}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({ message }),
+				body: JSON.stringify(body),
 			});
 			const data = await res.json();
 			if (data.error) throw new Error(data.error);

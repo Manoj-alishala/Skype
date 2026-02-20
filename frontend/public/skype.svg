@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#28A8EA"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="128" fill="url(#skyGrad)"/>
+  <path d="M189.5 141.8c.9-4.4 1.3-9 1.3-13.8 0-37.6-30.5-68.1-68.1-68.1-4.1 0-8.1.4-12 1.1C104.2 56.4 96.5 54 88.2 54c-23.1 0-41.8 18.7-41.8 41.8 0 7.5 2 14.6 5.5 20.7-.7 3.8-1.1 7.7-1.1 11.7 0 37.6 30.5 68.1 68.1 68.1 4.6 0 9.1-.5 13.5-1.4 5.8 3.2 12.4 5 19.4 5 23.1 0 41.8-18.7 41.8-41.8 0-6.3-1.4-12.3-4.1-17.3z" fill="white"/>
+  <text x="128" y="148" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="72" fill="url(#skyGrad)">S</text>
+</svg>

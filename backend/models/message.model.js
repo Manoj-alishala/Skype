@@ -10,12 +10,56 @@ const messageSchema = new mongoose.Schema(
 		receiverId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: "User",
-			required: true,
+			default: null,
+		},
+		// For group messages
+		conversationId: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "Conversation",
+			default: null,
 		},
 		message: {
 			type: String,
-			required: true,
+			default: "",
 		},
+		image: {
+			type: String, // Cloudinary URL
+			default: "",
+		},
+		// "sent" → delivered to server, "delivered" → reached recipient's client, "read" → opened
+		status: {
+			type: String,
+			enum: ["sent", "delivered", "read"],
+			default: "sent",
+		},
+		deletedFor: {
+			type: [mongoose.Schema.Types.ObjectId],
+			ref: "User",
+			default: [],
+		},
+		deletedForEveryone: {
+			type: Boolean,
+			default: false,
+		},
+		// Voice message
+		audio: {
+			type: String, // Cloudinary URL
+			default: "",
+		},
+		audioDuration: {
+			type: Number, // duration in seconds
+			default: 0,
+		},
+		// Reactions: [{userId, emoji}]
+		reactions: [
+			{
+				userId: {
+					type: mongoose.Schema.Types.ObjectId,
+					ref: "User",
+				},
+				emoji: String,
+			},
+		],
 		// createdAt, updatedAt
 	},
 	{ timestamps: true }

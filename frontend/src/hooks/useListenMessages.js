@@ -7,17 +7,34 @@ import notificationSound from "../assets/sounds/notification.mp3";
 
 const useListenMessages = () => {
 	const { socket } = useSocketContext();
-	const { messages, setMessages } = useConversation();
+	const { setMessages, selectedConversation, addUnread, soundEnabled } = useConversation();
 
 	useEffect(() => {
-		socket?.on("newMessage", (newMessage) => {
+		const handleNewMessage = (newMessage) => {
 			newMessage.shouldShake = true;
-			const sound = new Audio(notificationSound);
-			sound.play();
-			setMessages([...messages, newMessage]);
-		});
 
-		return () => socket?.off("newMessage");
-	}, [socket, setMessages, messages]);
+			// Play sound only if enabled
+			if (soundEnabled) {
+				const sound = new Audio(notificationSound);
+				sound.play().catch(() => {});
+			}
+
+			// If the message is from the user we're currently chatting with, add to messages
+			if (selectedConversation?._id === newMessage.senderId) {
+				setMessages((prev) => [...prev, newMessage]);
+
+				// Auto-mark as read since we're viewing this conversation
+				fetch(`/api/messages/read/${newMessage.senderId}`, { method: "PATCH" }).catch(() => {});
+				socket?.emit("messagesRead", { conversationUserId: newMessage.senderId });
+			} else {
+				// Otherwise, mark as unread
+				addUnread(newMessage.senderId);
+			}
+		};
+
+		socket?.on("newMessage", handleNewMessage);
+
+		return () => socket?.off("newMessage", handleNewMessage);
+	}, [socket, setMessages, selectedConversation, addUnread, soundEnabled]);
 };
 export default useListenMessages;

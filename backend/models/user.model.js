@@ -25,6 +25,15 @@ const userSchema = new mongoose.Schema(
 			type: String,
 			default: "",
 		},
+		bio: {
+			type: String,
+			default: "",
+			maxlength: 150,
+		},
+		lastSeen: {
+			type: Date,
+			default: null,
+		},
 		// createdAt, updatedAt => Member since <createdAt>
 	},
 	{ timestamps: true }
