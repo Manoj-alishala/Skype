@@ -22,10 +22,28 @@ const AUDIO_CONSTRAINTS = {
 };
 
 const VIDEO_CONSTRAINTS = {
-	width: { ideal: 1280, max: 1920 },
-	height: { ideal: 720, max: 1080 },
-	frameRate: { ideal: 30, max: 30 },
+	width: { ideal: 1280 },
+	height: { ideal: 720 },
+	frameRate: { ideal: 30 },
 	facingMode: "user",
+};
+
+// Helper: get user media with graceful fallback for video
+const getMediaStream = async (wantVideo) => {
+	if (wantVideo) {
+		try {
+			return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: VIDEO_CONSTRAINTS });
+		} catch (e) {
+			console.warn("[WebRTC] HD video failed, trying basic video:", e.message);
+			try {
+				return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: true });
+			} catch (e2) {
+				console.warn("[WebRTC] Camera unavailable, falling back to audio-only:", e2.message);
+				return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS });
+			}
+		}
+	}
+	return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS });
 };
 
 const CallModal = () => {
@@ -236,6 +254,8 @@ const CallModal = () => {
 	useEffect(() => {
 		if (!activeCall || !activeCall.isCaller || activeCall.accepted) return;
 
+		let cancelled = false;
+
 		const initCall = async () => {
 			try {
 				setCallDuration(0);
@@ -248,11 +268,9 @@ const CallModal = () => {
 				targetIdRef.current = activeCall.to;
 				callConnectedRef.current = false;
 
-				const constraints = {
-					audio: AUDIO_CONSTRAINTS,
-					video: activeCall.type === "video" ? VIDEO_CONSTRAINTS : false,
-				};
-				const stream = await navigator.mediaDevices.getUserMedia(constraints);
+				const stream = await getMediaStream(activeCall.type === "video");
+				if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+
 				localStreamRef.current = stream;
 				if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
@@ -260,6 +278,7 @@ const CallModal = () => {
 				stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
 				const offer = await pc.createOffer();
+				if (cancelled) return;
 				await pc.setLocalDescription(offer);
 
 				socket.emit("callUser", {
@@ -268,13 +287,19 @@ const CallModal = () => {
 					type: activeCall.type,
 				});
 			} catch (err) {
-				console.error("Failed to start call:", err);
+				if (cancelled) return;
+				console.error("[WebRTC] Failed to start call:", err);
 				doCleanup();
 				setActiveCall(null);
 			}
 		};
 
 		initCall();
+
+		return () => {
+			cancelled = true;
+			doCleanup();
+		};
 	}, [activeCall?.to, activeCall?.isCaller]);
 
 	// ─── Handle call accepted (caller receives answer) ───
@@ -371,12 +396,14 @@ const CallModal = () => {
 	const acceptCall = async () => {
 		if (!incomingCall) return;
 		try {
-			const constraints = {
-				audio: AUDIO_CONSTRAINTS,
-				video: incomingCall.type === "video" ? VIDEO_CONSTRAINTS : false,
-			};
-			const stream = await navigator.mediaDevices.getUserMedia(constraints);
+			const isVideo = incomingCall.type === "video";
+			const stream = await getMediaStream(isVideo);
 			localStreamRef.current = stream;
+
+			// Attach local video preview (callee side too)
+			if (localVideoRef.current) {
+				localVideoRef.current.srcObject = stream;
+			}
 
 			targetIdRef.current = incomingCall.from;
 			const pc = createPeerConnection();
@@ -404,7 +431,7 @@ const CallModal = () => {
 			setIncomingCall(null);
 			setCallState("calling"); // show "Connecting..." until ICE connects
 		} catch (err) {
-			console.error("Failed to accept call:", err);
+			console.error("[WebRTC] Failed to accept call:", err);
 			rejectCall();
 		}
 	};
