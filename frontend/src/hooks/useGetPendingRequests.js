@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { apiUrl } from "../utils/apiConfig";
 
 const useGetPendingRequests = () => {
 	const [loading, setLoading] = useState(false);
@@ -8,7 +9,7 @@ const useGetPendingRequests = () => {
 	const fetchPendingRequests = async () => {
 		setLoading(true);
 		try {
-			const res = await fetch("/api/friends/pending");
+			const res = await fetch(apiUrl("/api/friends/pending"));
 			const data = await res.json();
 			if (data.error) {
 				throw new Error(data.error);

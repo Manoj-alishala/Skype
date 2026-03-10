@@ -1,5 +1,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { apiUrl } from "../utils/apiConfig";
 
 const useFriendRequest = () => {
 	const [loading, setLoading] = useState(false);
@@ -7,7 +8,7 @@ const useFriendRequest = () => {
 	const sendRequest = async (userId) => {
 		setLoading(true);
 		try {
-			const res = await fetch(`/api/friends/request/${userId}`, {
+			const res = await fetch(apiUrl(`/api/friends/request/${userId}`), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 			});
@@ -28,7 +29,7 @@ const useFriendRequest = () => {
 	const acceptRequest = async (requestId) => {
 		setLoading(true);
 		try {
-			const res = await fetch(`/api/friends/accept/${requestId}`, {
+			const res = await fetch(apiUrl(`/api/friends/accept/${requestId}`), {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 			});
@@ -49,7 +50,7 @@ const useFriendRequest = () => {
 	const rejectRequest = async (requestId) => {
 		setLoading(true);
 		try {
-			const res = await fetch(`/api/friends/reject/${requestId}`, {
+			const res = await fetch(apiUrl(`/api/friends/reject/${requestId}`), {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 			});

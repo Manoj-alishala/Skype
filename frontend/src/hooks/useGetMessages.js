@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import useConversation from "../zustand/useConversation";
 import { useSocketContext } from "../context/SocketContext";
 import toast from "react-hot-toast";
+import { apiUrl } from "../utils/apiConfig";
 
 const useGetMessages = () => {
 	const [loading, setLoading] = useState(false);
@@ -12,13 +13,13 @@ const useGetMessages = () => {
 		const getMessages = async () => {
 			setLoading(true);
 			try {
-				const res = await fetch(`/api/messages/${selectedConversation._id}`);
+				const res = await fetch(apiUrl(`/api/messages/${selectedConversation._id}`));
 				const data = await res.json();
 				if (data.error) throw new Error(data.error);
 				setMessages(data);
 
 				// Mark messages as read
-				await fetch(`/api/messages/read/${selectedConversation._id}`, {
+				await fetch(apiUrl(`/api/messages/read/${selectedConversation._id}`), {
 					method: "PATCH",
 				});
 

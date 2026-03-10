@@ -1,5 +1,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { apiUrl } from "../utils/apiConfig";
 
 const useChangePassword = () => {
 	const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ const useChangePassword = () => {
 
 		setLoading(true);
 		try {
-			const res = await fetch("/api/users/change-password", {
+			const res = await fetch(apiUrl("/api/users/change-password"), {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword }),

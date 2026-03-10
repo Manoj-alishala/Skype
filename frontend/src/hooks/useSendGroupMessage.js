@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useConversation from "../zustand/useConversation";
 import toast from "react-hot-toast";
+import { apiUrl } from "../utils/apiConfig";
 
 const useSendGroupMessage = () => {
 	const [loading, setLoading] = useState(false);
@@ -17,7 +18,7 @@ const useSendGroupMessage = () => {
 				body.audioDuration = audioDuration;
 			}
 
-			const res = await fetch(`/api/groups/${selectedConversation._id}/send`, {
+			const res = await fetch(apiUrl(`/api/groups/${selectedConversation._id}/send`), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(body),

@@ -10,7 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
 	cors: {
-		origin: ["http://localhost:3000", "http://localhost:5000"],
+		origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:3000", "http://localhost:5000"] : ["http://localhost:3000", "http://localhost:5000"],
 		methods: ["GET", "POST"],
 	},
 });
@@ -105,7 +105,7 @@ io.on("connection", async (socket) => {
 			let fromUser = null;
 			try {
 				fromUser = await User.findById(userId).select("fullName profilePic").lean();
-			} catch {}
+			} catch { }
 			io.to(receiverSocketId).emit("incomingCall", {
 				from: userId,
 				fromUser,

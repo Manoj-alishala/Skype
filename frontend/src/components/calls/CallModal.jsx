@@ -4,6 +4,7 @@ import { BsCameraVideoFill, BsTelephoneXFill, BsTelephoneFill } from "react-icon
 import useConversation from "../../zustand/useConversation";
 import { useSocketContext } from "../../context/SocketContext";
 import { useAuthContext } from "../../context/AuthContext";
+import { apiUrl } from "../../utils/apiConfig";
 
 const ICE_SERVERS = {
 	iceServers: [
@@ -266,9 +267,11 @@ const CallModal = () => {
 	}, [socket, doCleanup, setActiveCall, setIncomingCall]);
 
 	// ─── Save call log to chat ───────────────────────────
+
+
 	const saveCallLog = useCallback(async (targetUserId, type, duration, status) => {
 		try {
-			const res = await fetch("/api/messages/call-log", {
+			const res = await fetch(apiUrl("/api/messages/call-log"), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -330,7 +333,7 @@ const CallModal = () => {
 				setTimeout(() => {
 					if (localVideoRef.current && localStreamRef.current) {
 						localVideoRef.current.srcObject = localStreamRef.current;
-						localVideoRef.current.play().catch(() => {});
+						localVideoRef.current.play().catch(() => { });
 					}
 				}, 50);
 			} catch (err) {
@@ -361,7 +364,7 @@ const CallModal = () => {
 					await pc.setRemoteDescription(new RTCSessionDescription(activeCall.signal));
 				}
 				for (const candidate of iceCandidatesQueue.current) {
-					try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+					try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch { }
 				}
 				iceCandidatesQueue.current = [];
 			} catch (err) {
@@ -391,7 +394,7 @@ const CallModal = () => {
 		const handleIceCandidate = ({ candidate }) => {
 			const pc = peerConnectionRef.current;
 			if (pc && pc.remoteDescription) {
-				pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+				pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => { });
 			} else {
 				iceCandidatesQueue.current.push(candidate);
 			}
@@ -445,7 +448,7 @@ const CallModal = () => {
 			socket.emit("answerCall", { to: incomingCall.from, signal: answer });
 
 			for (const candidate of iceCandidatesQueue.current) {
-				try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+				try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch { }
 			}
 			iceCandidatesQueue.current = [];
 
@@ -463,7 +466,7 @@ const CallModal = () => {
 			setTimeout(() => {
 				if (localVideoRef.current && localStreamRef.current) {
 					localVideoRef.current.srcObject = localStreamRef.current;
-					localVideoRef.current.play().catch(() => {});
+					localVideoRef.current.play().catch(() => { });
 				}
 			}, 100);
 		} catch (err) {

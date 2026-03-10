@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../utils/apiConfig";
 import Conversations from "./Conversations";
 import LogoutButton from "./LogoutButton";
 import SearchInput from "./SearchInput";
@@ -24,7 +25,7 @@ const Sidebar = () => {
 	useEffect(() => {
 		const fetchCount = async () => {
 			try {
-				const res = await fetch("/api/friends/pending");
+				const res = await fetch(apiUrl("/api/friends/pending"));
 				const data = await res.json();
 				if (!data.error) {
 					setPendingRequestCount(data.length);

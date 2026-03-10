@@ -1,5 +1,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { apiUrl } from "../utils/apiConfig";
 
 const useSearchUsers = () => {
 	const [loading, setLoading] = useState(false);
@@ -13,7 +14,7 @@ const useSearchUsers = () => {
 
 		setLoading(true);
 		try {
-			const res = await fetch(`/api/friends/search?query=${encodeURIComponent(query.trim())}`);
+			const res = await fetch(apiUrl(`/api/friends/search?query=${encodeURIComponent(query.trim())}`));
 			const data = await res.json();
 			if (data.error) {
 				throw new Error(data.error);

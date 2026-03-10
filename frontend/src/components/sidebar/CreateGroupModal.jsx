@@ -3,6 +3,7 @@ import { IoClose, IoSearch, IoCheckmark } from "react-icons/io5";
 import { BsPeopleFill } from "react-icons/bs";
 import toast from "react-hot-toast";
 import useConversation from "../../zustand/useConversation";
+import { apiUrl } from "../../utils/apiConfig";
 
 const CreateGroupModal = ({ onClose }) => {
 	const [step, setStep] = useState(1); // 1: select members, 2: group info
@@ -16,7 +17,7 @@ const CreateGroupModal = ({ onClose }) => {
 	useEffect(() => {
 		const fetchFriends = async () => {
 			try {
-				const res = await fetch("/api/friends/list");
+				const res = await fetch(apiUrl("/api/friends/list"));
 				const data = await res.json();
 				if (!data.error) setFriends(data);
 			} catch (err) {
@@ -46,7 +47,7 @@ const CreateGroupModal = ({ onClose }) => {
 
 		setLoading(true);
 		try {
-			const res = await fetch("/api/groups/create", {
+			const res = await fetch(apiUrl("/api/groups/create"), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -121,18 +122,16 @@ const CreateGroupModal = ({ onClose }) => {
 									<button
 										key={friend._id}
 										onClick={() => toggleMember(friend._id)}
-										className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all ${
-											isSelected ? 'bg-primary-500/20 border border-primary-400/30' : 'hover:bg-white/[0.06] border border-transparent'
-										}`}
+										className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all ${isSelected ? 'bg-primary-500/20 border border-primary-400/30' : 'hover:bg-white/[0.06] border border-transparent'
+											}`}
 									>
 										<img src={friend.profilePic} alt='' className='w-9 h-9 rounded-full object-cover' />
 										<div className='flex-1 text-left min-w-0'>
 											<p className='text-sm text-white font-medium truncate'>{friend.fullName}</p>
 											<p className='text-xs text-gray-500'>@{friend.username}</p>
 										</div>
-										<div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-											isSelected ? 'bg-primary-500 border-primary-400' : 'border-gray-600'
-										}`}>
+										<div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${isSelected ? 'bg-primary-500 border-primary-400' : 'border-gray-600'
+											}`}>
 											{isSelected && <IoCheckmark className='w-3 h-3 text-white' />}
 										</div>
 									</button>

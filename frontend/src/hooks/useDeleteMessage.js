@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useConversation from "../zustand/useConversation";
 import toast from "react-hot-toast";
+import { apiUrl } from "../utils/apiConfig";
 
 const useDeleteMessage = () => {
 	const [loading, setLoading] = useState(false);
@@ -9,7 +10,7 @@ const useDeleteMessage = () => {
 	const deleteMessage = async (messageId, forEveryone = false) => {
 		setLoading(true);
 		try {
-			const res = await fetch(`/api/messages/${messageId}`, {
+			const res = await fetch(apiUrl(`/api/messages/${messageId}`), {
 				method: "DELETE",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ forEveryone }),

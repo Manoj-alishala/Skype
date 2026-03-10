@@ -2,6 +2,7 @@ import { createContext, useState, useEffect, useContext } from "react";
 import { useAuthContext } from "./AuthContext";
 import useConversation from "../zustand/useConversation";
 import io from "socket.io-client";
+import { API_BASE_URL } from "../utils/apiConfig";
 
 const SocketContext = createContext();
 
@@ -16,7 +17,7 @@ export const SocketContextProvider = ({ children }) => {
 
 	useEffect(() => {
 		if (authUser) {
-			const socket = io("/", {
+			const socket = io(API_BASE_URL || "http://localhost:5000", {
 				query: {
 					userId: authUser._id,
 				},
@@ -117,7 +118,7 @@ export const SocketContextProvider = ({ children }) => {
 				}
 				// Play notification sound
 				if (soundEnabled && message.senderId?._id !== authUser._id && message.senderId !== authUser._id) {
-					try { new Audio("/sounds/notification.mp3").play(); } catch {}
+					try { new Audio("/sounds/notification.mp3").play(); } catch { }
 				}
 				// Refresh group list to update last message preview
 				state.triggerGroupsRefresh();

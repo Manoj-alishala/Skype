@@ -1,6 +1,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useAuthContext } from "../context/AuthContext";
+import { apiUrl } from "../utils/apiConfig";
 
 const useUpdateProfile = () => {
 	const [loading, setLoading] = useState(false);
@@ -9,7 +10,7 @@ const useUpdateProfile = () => {
 	const updateProfile = async ({ fullName, bio, profilePic }) => {
 		setLoading(true);
 		try {
-			const res = await fetch("/api/users/profile", {
+			const res = await fetch(apiUrl("/api/users/profile"), {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ fullName, bio, profilePic }),

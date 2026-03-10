@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useConversation from "../zustand/useConversation";
 import toast from "react-hot-toast";
+import { apiUrl } from "../utils/apiConfig";
 
 const useReactToMessage = () => {
 	const [loading, setLoading] = useState(false);
@@ -9,7 +10,7 @@ const useReactToMessage = () => {
 	const reactToMessage = async (messageId, emoji) => {
 		setLoading(true);
 		try {
-			const res = await fetch(`/api/messages/${messageId}/react`, {
+			const res = await fetch(apiUrl(`/api/messages/${messageId}/react`), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ emoji }),

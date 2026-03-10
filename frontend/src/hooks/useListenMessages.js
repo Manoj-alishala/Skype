@@ -4,6 +4,7 @@ import { useSocketContext } from "../context/SocketContext";
 import useConversation from "../zustand/useConversation";
 
 import notificationSound from "../assets/sounds/notification.mp3";
+import { apiUrl } from "../utils/apiConfig";
 
 const useListenMessages = () => {
 	const { socket } = useSocketContext();
@@ -16,15 +17,15 @@ const useListenMessages = () => {
 			// Play sound only if enabled
 			if (soundEnabled) {
 				const sound = new Audio(notificationSound);
-				sound.play().catch(() => {});
+				sound.play().catch(() => { });
 			}
 
 			// If the message is from the user we're currently chatting with, add to messages
 			if (selectedConversation?._id === newMessage.senderId) {
 				setMessages((prev) => [...prev, newMessage]);
 
-				// Auto-mark as read since we're viewing this conversation
-				fetch(`/api/messages/read/${newMessage.senderId}`, { method: "PATCH" }).catch(() => {});
+				// Auto-mark as read since we're viewing this conversation       
+				fetch(apiUrl(`/api/messages/read/${newMessage.senderId}`), { method: "PATCH" }).catch(() => { });
 				socket?.emit("messagesRead", { conversationUserId: newMessage.senderId });
 			} else {
 				// Otherwise, mark as unread
