@@ -30,9 +30,12 @@ app.use(cookieParser());
 
 app.use(
 	cors({
-		origin: process.env.CLIENT_URL
-			? [process.env.CLIENT_URL, "http://localhost:3000", "http://localhost:5000"]
-			: ["http://localhost:3000", "http://localhost:5000"],
+		origin: [
+			process.env.CLIENT_URL,
+			"http://localhost:3000",
+			"http://localhost:5000",
+			"https://chat-application-zchp.onrender.com"
+		].filter(Boolean),
 		credentials: true,
 	})
 );
@@ -45,7 +48,7 @@ app.use("/api/groups", groupRoutes);
 
 app.use(express.static(path.join(rootDir, "frontend", "dist")));
 
-app.get("/{*splat}", (req, res) => {
+app.get("*", (req, res) => {
 	res.sendFile(path.join(rootDir, "frontend", "dist", "index.html"));
 });
 
