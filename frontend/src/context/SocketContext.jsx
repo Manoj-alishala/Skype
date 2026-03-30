@@ -2,7 +2,7 @@ import { createContext, useState, useEffect, useContext } from "react";
 import { useAuthContext } from "./AuthContext";
 import useConversation from "../zustand/useConversation";
 import io from "socket.io-client";
-import { API_BASE_URL } from "../utils/apiConfig";
+import { API_BASE_URL, SOCKET_URL } from "../utils/apiConfig";
 
 const SocketContext = createContext();
 
@@ -17,7 +17,7 @@ export const SocketContextProvider = ({ children }) => {
 
 	useEffect(() => {
 		if (authUser) {
-			const socket = io(API_BASE_URL || "http://localhost:5000", {
+			const socket = io(SOCKET_URL, {
 				query: {
 					userId: authUser._id,
 				},

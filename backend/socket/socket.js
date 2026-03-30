@@ -10,7 +10,13 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
 	cors: {
-		origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:3000", "http://localhost:5000"] : ["http://localhost:3000", "http://localhost:5000"],
+		origin: [
+			process.env.CLIENT_URL,
+			"http://localhost:3000",
+			"http://localhost:5000",
+			"https://chat-application-zchp.onrender.com",
+			"https://chat-application-backend-x245.onrender.com"
+		].filter(Boolean),
 		methods: ["GET", "POST"],
 	},
 });
