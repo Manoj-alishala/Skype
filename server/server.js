@@ -47,10 +47,10 @@ app.use("/api/users", userRoutes);
 app.use("/api/friends", friendRoutes);
 app.use("/api/groups", groupRoutes);
 
-app.use(express.static(path.join(rootDir, "frontend", "dist")));
+app.use(express.static(path.join(rootDir, "client", "dist")));
 
 app.get(/.*/, (req, res) => {
-	res.sendFile(path.join(rootDir, "frontend", "dist", "index.html"));
+	res.sendFile(path.join(rootDir, "client", "dist", "index.html"));
 });
 
 // Error handling middleware

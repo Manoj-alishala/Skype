@@ -25,14 +25,14 @@ jobs:
     - name: Install Root Dependencies
       run: npm install
 
-    - name: Install Backend Dependencies
-      run: npm install --prefix backend
+    - name: Install Server Dependencies
+      run: npm install --prefix server
 
-    - name: Install Frontend Dependencies
-      run: npm install --prefix frontend
+    - name: Install Client Dependencies
+      run: npm install --prefix client
 
-    - name: Lint Frontend
-      run: npm run lint --prefix frontend
+    - name: Lint Client
+      run: npm run lint --prefix client
 
-    - name: Build Frontend
-      run: npm run build --prefix frontend
+    - name: Build Client
+      run: npm run build --prefix client

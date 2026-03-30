@@ -1,120 +1,142 @@
-# Real-Time Chat Application
+# 💬 Skype — Real-Time Chat Application
 
-A full-stack real-time chat application built with the MERN stack (MongoDB, Express, React, Node.js) and Socket.io. This application features secure authentication, real-time messaging, and a modern UI using TailwindCSS and DaisyUI.
+![CI](https://github.com/Manoj-alishala/Chat-Application/actions/workflows/ci.yml/badge.svg)
+
+A full-stack real-time chat application built with the **MERN stack** (MongoDB, Express, React, Node.js) and **Socket.io**. Packed with modern features like group chats, WebRTC video/audio calls, message reactions, typing indicators, read receipts, and more.
+
+---
 
 ## 🌟 Features
 
--   **Authentication & Authorization**: Secure signup and login using JWT (JSON Web Tokens).
--   **Real-time Messaging**: Instant message delivery using Socket.io.
--   **Online Status**: See who is currently online.
--   **Global State Management**: Efficient state management with Zustand.
--   **Modern UI**: Responsive and clean interface built with TailwindCSS and DaisyUI.
--   **Security**: bcryptjs for password hashing and secure cookie-based auth.
+### 💬 Messaging
+- **Real-time Messaging** — Instant delivery using Socket.io
+- **Group Chats** — Create and manage group conversations
+- **Message Reactions** — React to messages with emojis
+- **Unsend Messages** — Delete messages for everyone
+- **Image & Audio Messages** — Share media in chats
+- **Typing Indicators** — See when someone is typing
+- **Read Receipts** — Know when messages are read (✓✓)
+- **Delivered Receipts** — Know when messages are delivered
+
+### 📞 Calls
+- **WebRTC Video Calls** — Peer-to-peer video calling
+- **WebRTC Audio Calls** — Peer-to-peer voice calling
+- **Incoming Call Modal** — Accept or reject calls in real time
+
+### 👥 Friends & Social
+- **Friend Requests** — Send, accept, and reject friend requests
+- **Online Status** — See who is currently online
+- **Friend Removal** — Remove friends from your list
+
+### 🔐 Auth & Security
+- **JWT Authentication** — Secure login & signup
+- **Password Hashing** — Bcryptjs for secure storage
+- **Cookie-based Auth** — HTTP-only cookies
+
+### ⚙️ CI/CD
+- **GitHub Actions** — Automated lint and build on every push to `main`
+
+---
 
 ## 🛠️ Tech Stack
 
-**Frontend:**
--   React.js
--   Vite
--   TailwindCSS
--   DaisyUI
--   Zustand (State Management)
--   Socket.io-client
--   React Router Dom
--   React Hot Toast
+**Client:**
+- React.js + Vite
+- TailwindCSS + DaisyUI
+- Zustand (State Management)
+- Socket.io-client
+- React Router Dom
+- React Hot Toast
 
-**Backend:**
--   Node.js
--   Express.js
--   MongoDB (Database)
--   Socket.io (Real-time communication)
--   JsonWebToken (JWT)
--   Bcryptjs
--   Cookie-parser
+**Server:**
+- Node.js + Express.js
+- MongoDB + Mongoose
+- Socket.io
+- JsonWebToken (JWT)
+- Bcryptjs + Cookie-parser
+
+---
 
 ## 🚀 Getting Started
 
-Follow these steps to set up the project locally.
-
 ### Prerequisites
-
--   Node.js (v18 or higher recommended)
--   MongoDB (Local or Atlas)
+- Node.js (v20 or higher)
+- MongoDB (Local or Atlas)
 
 ### Installation
 
-1.  **Clone the repository:**
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Manoj-alishala/Chat-Application.git
+   cd Chat-Application
+   ```
 
-    ```bash
-    git clone https://github.com/Manoj-alishala/Chat-Application.git
-    cd Chat-Application
-    ```
+2. **Install all dependencies:**
+   ```bash
+   npm install
+   npm install --prefix server
+   npm install --prefix client
+   ```
 
-2.  **Install dependencies (root):**
+3. **Environment Configuration:**
 
-    This will install dependencies for both frontend and backend if configured, or you can do it manually.
+   Create a `.env` file in the `server/` directory:
+   ```env
+   PORT=5000
+   MONGO_DB_URI=your_mongodb_connection_string
+   JWT_SECRET=your_jwt_secret_key
+   NODE_ENV=development
+   ```
 
-    ```bash
-    npm install
-    cd frontend
-    npm install
-    cd ../backend
-    npm install
-    ```
+   Create a `.env` file in the `client/` directory:
+   ```env
+   VITE_API_BASE_URL=http://localhost:5000
+   ```
 
-3.  **Environment Configuration:**
+### 🏃 Running the App
 
-    Create a `.env` file in the `backend` directory with the following variables:
+1. **Start the server:**
+   ```bash
+   npm run dev --prefix server
+   ```
 
-    ```env
-    PORT=5000
-    MONGO_DB_URI=your_mongodb_connection_string
-    JWT_SECRET=your_jwt_secret_key
-    NODE_ENV=development
-    ```
+2. **Start the client:**
+   ```bash
+   npm run dev --prefix client
+   ```
 
-### 🏃‍♂️ Running the App
+3. Open `http://localhost:3000` in your browser.
 
-1.  **Start the backend server:**
-
-    ```bash
-    cd backend
-    npm start
-    ```
-    *Or for development with nodemon:*
-    ```bash
-    npm run dev
-    ```
-
-2.  **Start the frontend development server:**
-
-    ```bash
-    cd frontend
-    npm run dev
-    ```
-
-3.  **Access the application:**
-
-    Open your browser and navigate to `http://localhost:3000`.
+---
 
 ## 📂 Project Structure
 
 ```
-Chat-Application/
-├── backend/            # Backend server code
-│   ├── controllers/    # Request handlers
-│   ├── db/             # Database connection
-│   ├── middleware/     # Custom middleware (auth, etc.)
-│   ├── models/         # Mongoose models
-│   ├── routes/         # API routes
-│   ├── socket/         # Socket.io configuration
-│   └── server.js       # Entry point
-├── frontend/           # Frontend React application
-│   ├── public/         # Static assets
-│   ├── src/            # React components and logic
-│   └── vite.config.js  # Vite configuration
-└── package.json        # Root configuration
+Skype/
+├── .github/
+│   └── workflows/
+│       └── ci.yml          # GitHub Actions CI pipeline
+├── server/
+│   ├── controllers/        # Route handlers
+│   ├── db/                 # MongoDB connection
+│   ├── middleware/         # Auth middleware
+│   ├── models/             # Mongoose schemas
+│   ├── routes/             # API routes
+│   ├── socket/             # Socket.io events
+│   └── server.js           # Entry point
+├── client/
+│   ├── public/             # Static assets
+│   ├── src/
+│   │   ├── components/     # UI components
+│   │   ├── context/        # React context (Auth, Socket)
+│   │   ├── hooks/          # Custom hooks
+│   │   ├── pages/          # Page components
+│   │   └── zustand/        # Global state store
+│   └── vite.config.js
+└── package.json
 ```
+
+---
 
 ## 📜 License
 
@@ -122,4 +144,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Feel free to open an issue or submit a Pull Request.

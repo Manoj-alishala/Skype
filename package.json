@@ -2,11 +2,11 @@
 	"name": "skype-chat",
 	"version": "1.0.0",
 	"description": "Real-time chat application",
-	"main": "backend/server.js",
+	"main": "server/server.js",
 	"scripts": {
-		"start": "node backend/server.js",
-		"server": "nodemon backend/server.js",
-		"build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend"
+		"start": "node server/server.js",
+		"server": "nodemon server/server.js",
+		"build": "npm install --prefix server && npm install --prefix client && npm run build --prefix client"
 	},
 	"type": "module",
 	"keywords": [],
