@@ -21,27 +21,18 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: |
-          package-lock.json
-          backend/package-lock.json
-          frontend/package-lock.json
 
     - name: Install Root Dependencies
-      run: npm ci
+      run: npm install
 
     - name: Install Backend Dependencies
-      run: npm ci --prefix backend
+      run: npm install --prefix backend
 
     - name: Install Frontend Dependencies
-      run: npm ci --prefix frontend
+      run: npm install --prefix frontend
 
     - name: Lint Frontend
       run: npm run lint --prefix frontend
-      
-    # Uncomment if you add a lint script to backend/package.json
-    # - name: Lint Backend
-    #   run: npm run lint --prefix backend
 
     - name: Build Frontend
       run: npm run build --prefix frontend
