@@ -350,6 +350,7 @@ const CallModal = () => {
 			cancelled = true;
 			doCleanup();
 		};
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [activeCall?.to, activeCall?.isCaller]);
 
 	// ─── Handle call accepted (caller receives answer) ───
@@ -364,7 +365,7 @@ const CallModal = () => {
 					await pc.setRemoteDescription(new RTCSessionDescription(activeCall.signal));
 				}
 				for (const candidate of iceCandidatesQueue.current) {
-					try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch { }
+					try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) { console.warn("ICE candidate error:", e); }
 				}
 				iceCandidatesQueue.current = [];
 			} catch (err) {
@@ -372,6 +373,7 @@ const CallModal = () => {
 			}
 		};
 		handleAccepted();
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [activeCall?.accepted]);
 
 	// ─── Incoming Call (callee side — show ringing UI) ───
@@ -448,7 +450,7 @@ const CallModal = () => {
 			socket.emit("answerCall", { to: incomingCall.from, signal: answer });
 
 			for (const candidate of iceCandidatesQueue.current) {
-				try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch { }
+				try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) { console.warn("ICE candidate error:", e); }
 			}
 			iceCandidatesQueue.current = [];
 
@@ -531,7 +533,7 @@ const CallModal = () => {
 	if (callState === "ringing" && incomingCall) {
 		return (
 			<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-				<audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+				<audio ref={remoteAudioRef} autoPlay style={{ display: "none" }} />
 				<div className="glass-card-strong rounded-2xl p-8 max-w-sm w-full mx-4 text-center space-y-6">
 					<div className="relative inline-block mx-auto">
 						<img src={remoteUser?.profilePic} alt={remoteUser?.fullName} className="w-24 h-24 rounded-full object-cover ring-4 ring-primary-400/30 mx-auto animate-pulse" />
@@ -560,7 +562,7 @@ const CallModal = () => {
 	return (
 		<div className="fixed inset-0 z-[9999] flex flex-col bg-gray-950 animate-fade-in">
 			{/* Hidden audio — always present for audio playback */}
-			<audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+			<audio ref={remoteAudioRef} autoPlay style={{ display: "none" }} />
 
 			{callType === "video" ? (
 				<div style={{ flex: 1, position: "relative", background: "#000", minHeight: 0, overflow: "hidden" }}>

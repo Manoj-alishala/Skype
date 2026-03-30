@@ -6,7 +6,7 @@ import useConversation from "../../zustand/useConversation";
 import { useSocketContext } from "../../context/SocketContext";
 
 const FriendRequests = ({ onClose }) => {
-	const { loading, pendingRequests, setPendingRequests, refetch } = useGetPendingRequests();
+	const { loading, pendingRequests, setPendingRequests } = useGetPendingRequests();
 	const { loading: actionLoading, acceptRequest, rejectRequest } = useFriendRequest();
 	const { setPendingRequestCount, triggerFriendsRefresh } = useConversation();
 	const { socket } = useSocketContext();

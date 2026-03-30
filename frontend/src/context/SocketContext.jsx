@@ -2,7 +2,8 @@ import { createContext, useState, useEffect, useContext } from "react";
 import { useAuthContext } from "./AuthContext";
 import useConversation from "../zustand/useConversation";
 import io from "socket.io-client";
-import { API_BASE_URL, SOCKET_URL } from "../utils/apiConfig";
+// eslint-disable-next-line react-refresh/only-export-components
+export const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || window.location.origin;
 
 const SocketContext = createContext();
 
@@ -118,7 +119,7 @@ export const SocketContextProvider = ({ children }) => {
 				}
 				// Play notification sound
 				if (soundEnabled && message.senderId?._id !== authUser._id && message.senderId !== authUser._id) {
-					try { new Audio("/sounds/notification.mp3").play(); } catch { }
+					try { new Audio("/sounds/notification.mp3").play(); } catch (e) { console.warn("Audio play failed:", e); }
 				}
 				// Refresh group list to update last message preview
 				state.triggerGroupsRefresh();
@@ -174,6 +175,7 @@ export const SocketContextProvider = ({ children }) => {
 				setSocket(null);
 			}
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [authUser]);
 
 	return <SocketContext.Provider value={{ socket, onlineUsers }}>{children}</SocketContext.Provider>;
