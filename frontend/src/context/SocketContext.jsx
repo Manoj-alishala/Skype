@@ -2,8 +2,7 @@ import { createContext, useState, useEffect, useContext } from "react";
 import { useAuthContext } from "./AuthContext";
 import useConversation from "../zustand/useConversation";
 import io from "socket.io-client";
-// eslint-disable-next-line react-refresh/only-export-components
-export const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || window.location.origin;
 
 const SocketContext = createContext();
 
