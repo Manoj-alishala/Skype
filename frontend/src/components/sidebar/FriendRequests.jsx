@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { IoClose, IoCheckmark } from "react-icons/io5";
 import useGetPendingRequests from "../../hooks/useGetPendingRequests";
 import useFriendRequest from "../../hooks/useFriendRequest";

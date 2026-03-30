@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { extractTime } from "../../utils/extractTime";
-import useConversation from "../../zustand/useConversation";
 import useReactToMessage from "../../hooks/useReactToMessage";
 import { BsMicFill } from "react-icons/bs";
 import { MdOutlineAddReaction } from "react-icons/md";

@@ -5,7 +5,7 @@ import useConversation from "../../zustand/useConversation";
 import useDeleteMessage from "../../hooks/useDeleteMessage";
 import useReactToMessage from "../../hooks/useReactToMessage";
 import { BsCheck2, BsCheck2All, BsThreeDotsVertical, BsMicFill, BsTelephoneFill, BsCameraVideoFill, BsTelephoneXFill } from "react-icons/bs";
-import { IoTrashOutline, IoTrashBin, IoCallOutline, IoVideocamOutline } from "react-icons/io5";
+import { IoTrashOutline, IoTrashBin } from "react-icons/io5";
 import { MdOutlineAddReaction } from "react-icons/md";
 
 const QUICK_REACTIONS = ["❤️", "😂", "👍", "😮", "😢", "🔥"];

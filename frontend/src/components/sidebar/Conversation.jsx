@@ -34,7 +34,7 @@ const formatMessageTime = (date) => {
 	return msgDate.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
-const Conversation = ({ conversation, lastIdx }) => {
+const Conversation = ({ conversation }) => {
 	const { authUser } = useAuthContext();
 	const { selectedConversation, setSelectedConversation, setIsSidebarOpen, unreadMessages, clearUnread, typingUsers } = useConversation();
 

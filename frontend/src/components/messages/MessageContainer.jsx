@@ -64,7 +64,7 @@ const MessageContainer = () => {
 export default MessageContainer;
 
 const ChatHeader = ({ conversation, onBack }) => {
-	const { onlineUsers, socket } = useSocketContext();
+	const { onlineUsers } = useSocketContext();
 	const isOnline = onlineUsers.includes(conversation._id);
 	const { typingUsers, setActiveCall } = useConversation();
 	const isTyping = typingUsers[conversation._id];
