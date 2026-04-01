@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  # ── MongoDB ───────────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: chat-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - chat-net
+
+  # ── Chat Application ─────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      # Override this with your Atlas URI or use the local mongo service below
+      MONGO_DB_URI: mongodb://root:rootpassword@mongo:27017/chat?authSource=admin
+      JWT_SECRET: change_me_in_production
+      CLIENT_URL: http://localhost:5000
+      # Cloudinary (fill in your actual values)
+      CLOUDINARY_CLOUD_NAME: your_cloud_name
+      CLOUDINARY_API_KEY: your_api_key
+      CLOUDINARY_API_SECRET: your_api_secret
+    depends_on:
+      - mongo
+    networks:
+      - chat-net
+
+volumes:
+  mongo_data:
+
+networks:
+  chat-net:
+    driver: bridge

@@ -1,6 +1,10 @@
-# 💬 Skype — Real-Time Chat Application
+# 💬 ChatApp — Real-Time Chat Application
 
 ![CI](https://github.com/Manoj-alishala/Chat-Application/actions/workflows/ci.yml/badge.svg)
+![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Deployed-326CE5?logo=kubernetes&logoColor=white)
+
+🌐 **Live Demo:** [https://chat-application-zchp.onrender.com](https://chat-application-zchp.onrender.com)
 
 A full-stack real-time chat application built with the **MERN stack** (MongoDB, Express, React, Node.js) and **Socket.io**. Packed with modern features like group chats, WebRTC video/audio calls, message reactions, typing indicators, read receipts, and more.
 
@@ -36,6 +40,12 @@ A full-stack real-time chat application built with the **MERN stack** (MongoDB, 
 ### ⚙️ CI/CD
 - **GitHub Actions** — Automated lint and build on every push to `main`
 
+### 🐳 Docker & Kubernetes
+- **Dockerized** — Multi-stage Docker build (React + Express in one image)
+- **Kubernetes Ready** — Full K8s manifests (Deployment, Service, ConfigMap, Secrets)
+- **2 Replicas** — High availability with automatic pod restarts
+- **LoadBalancer Service** — Exposed on port 80
+
 ---
 
 ## 🛠️ Tech Stack
@@ -55,9 +65,44 @@ A full-stack real-time chat application built with the **MERN stack** (MongoDB, 
 - JsonWebToken (JWT)
 - Bcryptjs + Cookie-parser
 
+**DevOps:**
+- Docker (Multi-stage build)
+- Kubernetes (kubeadm)
+- GitHub Actions CI/CD
+
 ---
 
-## 🚀 Getting Started
+## 🐳 Docker & Kubernetes Deployment
+
+### Run with Docker Compose (Quickest)
+```bash
+# Clone the repo
+git clone https://github.com/Manoj-alishala/Chat-Application.git
+cd Chat-Application
+
+# Add your credentials to docker-compose.yml, then:
+docker compose up --build
+```
+Visit `http://localhost:5000` 🚀
+
+### Deploy to Kubernetes
+```bash
+# 1. Build the image
+docker build -t chat-app:latest .
+
+# 2. Fill in your secrets in k8s/secret.yaml
+
+# 3. Deploy all manifests
+kubectl apply -f k8s/
+
+# 4. Check pods
+kubectl get pods -n chat-app
+```
+Visit `http://localhost` 🚀
+
+---
+
+## 🚀 Getting Started (Local Dev)
 
 ### Prerequisites
 - Node.js (v20 or higher)
@@ -112,27 +157,36 @@ A full-stack real-time chat application built with the **MERN stack** (MongoDB, 
 ## 📂 Project Structure
 
 ```
-Skype/
+Chat-Application/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml          # GitHub Actions CI pipeline
+│       └── ci.yml              # GitHub Actions CI pipeline
+├── k8s/
+│   ├── namespace.yaml          # Kubernetes namespace
+│   ├── configmap.yaml          # Non-secret env vars
+│   ├── secret.yaml             # Secret credentials (gitignored)
+│   ├── deployment.yaml         # App deployment (2 replicas)
+│   └── service.yaml            # LoadBalancer service
 ├── server/
-│   ├── controllers/        # Route handlers
-│   ├── db/                 # MongoDB connection
-│   ├── middleware/         # Auth middleware
-│   ├── models/             # Mongoose schemas
-│   ├── routes/             # API routes
-│   ├── socket/             # Socket.io events
-│   └── server.js           # Entry point
+│   ├── controllers/            # Route handlers
+│   ├── db/                     # MongoDB connection
+│   ├── middleware/             # Auth middleware
+│   ├── models/                 # Mongoose schemas
+│   ├── routes/                 # API routes
+│   ├── socket/                 # Socket.io events
+│   └── server.js               # Entry point
 ├── client/
-│   ├── public/             # Static assets
+│   ├── public/                 # Static assets
 │   ├── src/
-│   │   ├── components/     # UI components
-│   │   ├── context/        # React context (Auth, Socket)
-│   │   ├── hooks/          # Custom hooks
-│   │   ├── pages/          # Page components
-│   │   └── zustand/        # Global state store
+│   │   ├── components/         # UI components
+│   │   ├── context/            # React context (Auth, Socket)
+│   │   ├── hooks/              # Custom hooks
+│   │   ├── pages/              # Page components
+│   │   └── zustand/            # Global state store
 │   └── vite.config.js
+├── Dockerfile                  # Multi-stage Docker build
+├── docker-compose.yml          # Local dev with MongoDB
+├── .dockerignore
 └── package.json
 ```
 

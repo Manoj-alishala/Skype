@@ -1,0 +1,14 @@
+node_modules
+client/node_modules
+server/node_modules
+client/dist
+.git
+.github
+.gitignore
+*.log
+*.md
+k8s/
+docker-compose.yml
+.env
+server/.env
+client/.env
